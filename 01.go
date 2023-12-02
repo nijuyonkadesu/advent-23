@@ -7,12 +7,21 @@ import (
 	"regexp"
 	"strconv"
 )
+const DEBUG = false 
 
 func main()  {
 
-    // fmt.Print(findCallibrationNaive("ok8ok9"))
-    parseDocument()
-    // fmt.Print(findCallibrationPro("onethreebvnqhkdzfkbjrgnjdtvzgv7sevenrhp"))
+    if DEBUG {
+        test()
+    } else {
+        parseDocument()
+    }
+}
+
+func test() {
+
+    fmt.Print(findCallibrationNaive("ok8ok9"))
+    fmt.Print(findCallibrationPro("oneight"))
 }
 
 func parseDocument() {
@@ -39,7 +48,9 @@ func findCallibrationNaive(source string) int {
     if res == nil {
         return 0
     }
-    // fmt.Println(res)
+    if DEBUG {
+        fmt.Println(res)
+    }
     tenth, _ := strconv.Atoi(res[0])
     ones, _ := strconv.Atoi(res[len(res)-1])
     return tenth*10 + ones
@@ -71,16 +82,26 @@ func findCallibrationPro(source string) int {
         "0": 0,
     }
 
-    re := regexp.MustCompile(`\d|one|two|three|four|five|six|seven|eight|nine|zero`)
-
-    res := re.FindAllString(source, -1)
-    // fmt.Println(res)
-    if res == nil {
+    forwardPass := regexp.MustCompile(`\d|one|two|three|four|five|six|seven|eight|nine|zero`)
+    backwaredPass := regexp.MustCompile(`orez|enin|thgie|neves|xis|evif|ruof|eerht|owt|eno|\d`)
+    tenth := forwardPass.FindAllString(source, 1)
+    if tenth == nil {
         return 0
     }
-    tenth := res[0]
-    ones := res[len(res)-1]
-
-    return translator[tenth]*10 + translator[ones]
+    ones := reverseString(backwaredPass.FindAllString(reverseString(source), 1)[0])
+    res := translator[tenth[0]]*10 + translator[ones]
+    if DEBUG {
+        fmt.Println(tenth[0] + ones)
+    }
+    return res
 }
 
+func reverseString(s string) string {
+
+    runes := []rune(s)
+    length := len(runes)
+    for s, e := 0, length-1; s < e; s, e = s+1, e-1 {
+        runes[s], runes[e] = runes[e], runes[s]
+    }
+    return string(runes)
+}

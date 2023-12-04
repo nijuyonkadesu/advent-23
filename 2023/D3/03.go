@@ -8,7 +8,8 @@ import (
 	"strconv"
 )
 
-const DEBUG = false 
+const DEBUG = true 
+const PART = 2 // Change to 2 to solve part 2
 
 type EngineBufferLayout struct {
     oneRaw string
@@ -32,8 +33,15 @@ type EngineScanner interface {
     alloc()
     shiftUp()
     insert(scramble string) 
-    validate()
+
+    // PART 1
+    validate() // TODO change name
     pieceTogether()
+
+    // PART 2
+    findGearRatio()
+    gearsTogether()
+
     finalize()
     customPrint()
 }
@@ -42,6 +50,10 @@ type EngineBuffer struct {
     buffer EngineBufferLayout
     scramble string // this one should be the older one
     serial int
+
+    gearValue int
+    gearRatio int
+    addMulSwitch bool // false is add, true is mul
 }
 
 func (eb *EngineBuffer) alloc(len int) {
@@ -56,6 +68,9 @@ func (eb *EngineBuffer) alloc(len int) {
     eb.buffer.oneValids = make([]int, len)
     eb.buffer.twoValids = make([]int, len)
     eb.buffer.threeValids = make([]int, len)
+
+    eb.gearRatio = 0
+    eb.addMulSwitch = true 
 }
 
 func (eb *EngineBuffer) customPrint() {
@@ -149,18 +164,133 @@ func (eb *EngineBuffer) validate() {
     eb.pieceTogether()
 }
 
+func (eb *EngineBuffer) gearsTogether() {
+    for i, v := range eb.buffer.oneDigits {
+        if eb.buffer.oneValids[i] == 1 {
+            numStr := eb.buffer.oneRaw[v[0]:v[1]]
+            num, err := strconv.Atoi(numStr)
+            if err != nil {
+                fmt.Println("gearsTogether:", err)
+            }
+            if DEBUG {
+                fmt.Println("*", num)
+            }
+            eb.addMulSwitch = !eb.addMulSwitch // false at first run
+            if eb.addMulSwitch {
+                eb.gearRatio = eb.gearRatio + eb.gearValue * num
+            } else {
+                eb.gearValue = num 
+            }
+        }
+    }
+}
+
+func (eb *EngineBuffer) findGearRatio() {
+    for _, v := range eb.buffer.twoSpecials {
+        if len(v) == 0 {
+            break;
+        }
+        splIdx := v[0]
+        matches := 0
+        rowOneMatch := []int {} 
+        rowTwoMatch := []int {} 
+        rowThreeMatch := []int {}
+        // TODO: one star with only 2 adjacent number. can be at any row
+        // Change the below logic, it's wrong
+        // Backtrack ? woah
+
+        for i, numIdx := range eb.buffer.oneDigits {
+            if splIdx >= numIdx[0] && splIdx < numIdx[1] {
+                rowOneMatch = append(rowOneMatch, i)
+                matches++
+            } else if splIdx + 1 < len(eb.buffer.oneRaw) && splIdx + 1 >= numIdx[0] && splIdx + 1 < numIdx[1] {
+                rowOneMatch = append(rowOneMatch, i)
+                matches++
+            } else if splIdx - 1 > 0 && splIdx - 1 >= numIdx[0] && splIdx - 1 < numIdx[1] {
+                rowOneMatch = append(rowOneMatch, i)
+                matches++
+            }
+        }
+
+        for i, numIdx := range eb.buffer.twoDigits {
+            if splIdx >= numIdx[0] && splIdx < numIdx[1] {
+                rowTwoMatch = append(rowTwoMatch, i)
+                matches++
+            } else if splIdx + 1 < len(eb.buffer.twoRaw) && splIdx + 1 >= numIdx[0] && splIdx + 1 < numIdx[1] {
+                rowTwoMatch = append(rowTwoMatch, i)
+                matches++
+            } else if splIdx - 1 > 0 && splIdx - 1 >= numIdx[0] && splIdx - 1 < numIdx[1] {
+                rowTwoMatch = append(rowTwoMatch, i)
+                matches++
+            }
+        }
+
+        for i, numIdx := range eb.buffer.threeDigits {
+            if splIdx >= numIdx[0] && splIdx < numIdx[1] {
+                rowThreeMatch = append(rowThreeMatch, i)
+                matches++
+            } else if splIdx + 1 < len(eb.buffer.threeRaw) && splIdx + 1 >= numIdx[0] && splIdx + 1 < numIdx[1] {
+                rowThreeMatch = append(rowThreeMatch, i)
+                matches++
+            } else if splIdx - 1 > 0 && splIdx - 1 >= numIdx[0] && splIdx - 1 < numIdx[1] {
+                rowThreeMatch = append(rowThreeMatch, i)
+                matches++
+            }
+        }
+
+        if matches == 2 {
+            for _, v := range rowOneMatch {
+                if len(rowOneMatch) != 0 {
+                    eb.buffer.oneValids[v] = 1
+                }
+            }
+
+            for _, v := range rowTwoMatch {
+                if len(rowTwoMatch) != 0 {
+                    eb.buffer.twoValids[v] = 1
+                }
+            }
+
+            for _, v := range rowThreeMatch {
+                if len(rowThreeMatch) != 0 {
+                    eb.buffer.threeValids[v] = 1
+                }
+            }
+        } 
+    }
+    eb.gearsTogether()
+}
+
 func (eb *EngineBuffer) finalize(){
     eb.shiftUp()
-    eb.validate()
+    if PART == 1 {
+        eb.validate()
+    } else if PART == 2 {
+        eb.findGearRatio()
+
+    }
     eb.shiftUp()
-    eb.validate()
+    if PART == 1 {
+        eb.validate()
+    } else if PART == 2 {
+        eb.findGearRatio()
+    }
+}
+
+func regexPattern() (*regexp.Regexp, *regexp.Regexp) {
+
+    if PART == 1 {
+        return regexp.MustCompile(`[^\w.]`), regexp.MustCompile(`\d+`)
+    } else if PART == 2 {
+        return regexp.MustCompile(`\*`), regexp.MustCompile(`\d+`)
+    }
+        return regexp.MustCompile(`[^\w.]`), regexp.MustCompile(`\d+`)
 }
 
 func (eb *EngineBuffer) insert(scramble string) {
     eb.scramble = scramble
 
-    reSpl := regexp.MustCompile(`[^\w.]`)
-    reNums := regexp.MustCompile(`\d+`)
+    reSpl, reNums := regexPattern()
 
     spl := reSpl.FindAllIndex([]byte(scramble), -1)
     nums := reNums.FindAllIndex([]byte(scramble), -1)
@@ -176,11 +306,20 @@ func (eb *EngineBuffer) insert(scramble string) {
     eb.buffer.threeDigits = nums
     eb.buffer.threeSpecials = spl
     eb.buffer.threeValids = make([]int, len(eb.buffer.threeDigits))
-    eb.validate()
+
+    if PART == 1 {
+        eb.validate()
+    } else if PART == 2 {
+        eb.findGearRatio()
+    }
 }
 
 func main () {
-    fmt.Println(parseSerialParts())
+    if PART == 1 {
+        fmt.Println(parseSerialParts())
+    } else if PART == 2 {
+        fmt.Println(parseGearParts())
+    }
 }
 
 func parseSerialParts() int {
@@ -217,4 +356,36 @@ func parseSerialParts() int {
     return engineBuffer.serial
 }
 
+func parseGearParts() int {
+    engineBuffer := EngineBuffer{}
 
+    file, err := os.Open("tiny.txt")
+    if err != nil {
+        fmt.Println(err)
+        return 0
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    for i := 0; scanner.Scan(); i++ {
+        scramble := scanner.Text()
+        if scramble == "" {
+            continue
+        }
+        if i == 0 {
+            engineBuffer.alloc(len(scramble))
+        }
+        engineBuffer.insert(scramble)
+
+        if DEBUG {
+            engineBuffer.customPrint()
+        }
+        
+        if err != nil {
+            fmt.Print(err)
+        }
+    }
+
+    engineBuffer.finalize()
+    return engineBuffer.gearRatio
+}

@@ -8,3 +8,5 @@ This is because, go wants all of the projects to be in same workspace. You can s
 ```bash
 go run 01.go
 ```
+### Some tips to myself
+**SOLVE IN PAPER PROPERLY FIRST!! DON'T JUMP IN EXCITEMENT WITH "AH, YES, THISS SEEMS TO SOLVE THE PROBLEM" AND THEN SIT HOURSE DEBUGGING UGGGGGGGGGGGGH
